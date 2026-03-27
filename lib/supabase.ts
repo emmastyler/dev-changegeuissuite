@@ -20,6 +20,7 @@ export interface Profile {
   role: UserRole
   change_genius_role: string | null
   onboarded: boolean
+  has_paid: boolean
   created_at: string
   updated_at: string
 }

@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
 
   // Determine redirect destination
   let dest = '/dashboard'
-  if (type === 'signup') dest = '/assessment?welcome=1'
+  if (type === 'signup') dest = '/payment?plan=individual&welcome=1'
   if (type === 'recovery') dest = '/auth/reset-password'
 
   const response = NextResponse.redirect(`${origin}${dest}`)

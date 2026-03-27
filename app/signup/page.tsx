@@ -41,7 +41,7 @@ export default function SignupPage() {
     const res = await signUp({ full_name: values.full_name, email: values.email, password: values.password })
     if (res.error) { setServerError(res.error); return }
     if (res.confirmSent) { setConfirmed(true); return }
-    router.push('/assessment?welcome=1')
+    router.push('/payment?plan=individual&welcome=1')
   }
 
   async function handleGoogle() {

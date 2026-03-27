@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-const PROTECTED = ['/dashboard', '/assessment', '/results', '/teams', '/pulse']
-const AUTH_ONLY = ['/login', '/signup', '/forgot-password'] // redirect away if already logged in
+// Routes that require login
+const REQUIRES_AUTH = ['/dashboard', '/assessment', '/results', '/teams', '/pulse', '/payment']
+
+// Routes that redirect to dashboard if already logged in
+const AUTH_ONLY = ['/login', '/signup', '/forgot-password']
+
+// Routes that require payment on top of auth
+// Note: fine-grained payment check happens in the page itself (profile.has_paid)
+// Middleware only checks auth — page components handle the payment redirect
+// This keeps middleware fast (no DB calls for profile)
+const REQUIRES_PAYMENT = ['/assessment', '/results', '/pulse']
 
 function secureResponse(response: NextResponse): NextResponse {
   response.headers.set('X-Frame-Options', 'DENY')
@@ -24,13 +33,17 @@ function safeReturnUrl(url: string | null): string {
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // Skip static and internal
-  if (pathname.startsWith('/_next') || pathname.startsWith('/api') || pathname.includes('.')) {
+  // Skip static assets and API routes (API routes handle their own auth)
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api') ||
+    pathname.includes('.')
+  ) {
     return NextResponse.next()
   }
 
-  const isProtected = PROTECTED.some((p) => pathname.startsWith(p))
-  const isAuthOnly = AUTH_ONLY.some((p) => pathname.startsWith(p))
+  const isProtected = REQUIRES_AUTH.some((p) => pathname.startsWith(p))
+  const isAuthOnly  = AUTH_ONLY.some((p) => pathname.startsWith(p))
 
   if (!isProtected && !isAuthOnly) {
     return secureResponse(NextResponse.next())
@@ -47,7 +60,9 @@ export async function proxy(req: NextRequest) {
         cookies: {
           getAll() { return req.cookies.getAll() },
           setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => res.cookies.set(name, value, options))
+            cookiesToSet.forEach(({ name, value, options }) =>
+              res.cookies.set(name, value, options)
+            )
           },
         },
       }
@@ -58,7 +73,7 @@ export async function proxy(req: NextRequest) {
     // Session unavailable — treat as unauthenticated
   }
 
-  // Protect routes
+  // Not logged in → send to login
   if (isProtected && !session) {
     const url = req.nextUrl.clone()
     url.pathname = '/login'
@@ -66,7 +81,7 @@ export async function proxy(req: NextRequest) {
     return secureResponse(NextResponse.redirect(url))
   }
 
-  // Redirect logged-in users away from auth pages
+  // Already logged in → redirect away from auth pages
   if (isAuthOnly && session) {
     const returnUrl = req.nextUrl.searchParams.get('returnUrl')
     const url = req.nextUrl.clone()
