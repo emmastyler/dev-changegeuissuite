@@ -7,7 +7,7 @@ const STAGES = [
     label: "Alert the System",
     color: "#0a2540",
     stage: "Stage 1",
-    tagline: "👉 See what is changing early",
+    tagline: "See what is changing early",
     title: "Alert the System",
     desc: "Recognize problems, opportunities, or shifts before they become crises.",
     expand:
@@ -18,7 +18,7 @@ const STAGES = [
     label: "Diagnose the Gaps",
     color: "#0d3060",
     stage: "Stage 2",
-    tagline: "👉 Understand what is really wrong",
+    tagline: "Understand what is really wrong",
     title: "Diagnose the Gaps",
     desc: "Identify the difference between where you are and where you need to be.",
     expand:
@@ -29,7 +29,7 @@ const STAGES = [
     label: "Access Readiness",
     color: "#1557d4",
     stage: "Stage 3",
-    tagline: "👉 Check if you are truly prepared",
+    tagline: "Check if you are truly prepared",
     title: "Access Readiness",
     desc: "Evaluate your people, systems, resources, and willingness to change.",
     expand:
@@ -40,7 +40,7 @@ const STAGES = [
     label: "Participate Through Dialogue",
     color: "#1a6bfa",
     stage: "Stage 4",
-    tagline: "👉 Align people through conversation",
+    tagline: "Align people through conversation",
     title: "Participate Through Dialogue",
     desc: "Create shared understanding, trust, and clarity across everyone involved.",
     expand:
@@ -51,7 +51,7 @@ const STAGES = [
     label: "Transform Through Alignment",
     color: "#4d8ef8",
     stage: "Stage 5",
-    tagline: "👉 Execute with the right structure",
+    tagline: "Execute with the right structure",
     title: "Transform Through Alignment",
     desc: "Align people, roles, priorities, and actions to drive real results.",
     expand:
@@ -62,7 +62,7 @@ const STAGES = [
     label: "Scale and Sustain",
     color: "#93b8fb",
     stage: "Stage 6",
-    tagline: "👉 Make it last and grow",
+    tagline: "Make it last and grow",
     title: "Scale and Sustain",
     desc: "Embed the change into systems, culture, and daily operations so it continues.",
     expand:
@@ -117,8 +117,8 @@ function labelAnchor(i: number, n: number) {
 const SHORT: Record<string, string> = {
   "Alert the System": "Alert",
   "Diagnose the Gaps": "Diagnose",
-  "Access Readiness": "Readiness",
-  "Participate Through Dialogue": "Dialogue",
+  "Access Readiness": "Access",
+  "Participate Through Dialogue": "Participate",
   "Transform Through Alignment": "Transform",
   "Scale and Sustain": "Scale",
 };
