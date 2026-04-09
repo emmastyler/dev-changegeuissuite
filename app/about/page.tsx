@@ -9,10 +9,16 @@ export default function AboutPage() {
         </div>
       </div>
       <div className="page">
+        <div style={{ background:'var(--navy)', borderRadius:'var(--radius)', padding:'64px 52px', textAlign:'center' }}>
+          <h1 style={{ fontSize:'clamp(28px,4vw,44px)', fontWeight:800, color:'white', letterSpacing:'-1px', marginBottom:14 }}>About Change Genius™</h1>
+          <p style={{ fontSize:17, color:'rgba(255,255,255,.55)', lineHeight:1.65, maxWidth:560, margin:'0 auto' }}>
+            The leadership intelligence platform for change. Built on the ADAPTS™ framework.
+          </p>
+        </div>
         <div className="card" style={{ padding:52 }}>
-          <div style={{ fontSize:11, fontWeight:700, color:'var(--blue)', textTransform:'uppercase', letterSpacing:'1.5px', marginBottom:12 }}>About Us</div>
-          <h1 style={{ fontSize:40, fontWeight:800, color:'var(--text-1)', letterSpacing:'-1px', marginBottom:16, lineHeight:1.12 }}>Built for leaders navigating transformation.</h1>
-          <p style={{ fontSize:16, color:'var(--text-2)', lineHeight:1.7, maxWidth:640 }}>Change Genius™ is the first assessment-based framework that reveals exactly how individuals and teams drive transformation. Built on the ADAPTS model — six stages from sensing disruption to scaling impact — it gives every leader and organization a shared language for change.</p>
+          <p style={{ fontSize:16, color:'var(--text-2)', lineHeight:1.8, maxWidth:680 }}>
+            Change Genius™ is the first assessment-based framework that reveals exactly how individuals and teams drive transformation. Built on the ADAPTS model — six stages from sensing disruption to scaling impact — it gives every leader and organization a shared language for change.
+          </p>
         </div>
       </div>
     </div>

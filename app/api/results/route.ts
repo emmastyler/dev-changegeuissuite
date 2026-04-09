@@ -18,7 +18,6 @@ export async function GET(req: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Get the most recent completed assessment + scores
   const { data: assessment } = await supabase
     .from('assessments')
     .select('id, completed_at')
@@ -45,12 +44,12 @@ export async function GET(req: NextRequest) {
     .single()
 
   return NextResponse.json({
-    assessmentId:    assessment.id,
-    completedAt:     assessment.completed_at,
-    roleScores:      scores.role_scores,
-    stageScores:     scores.stage_scores,
-    energyScores:    scores.energy_scores,
-    derived:         scores.derived,
+    assessmentId:  assessment.id,
+    completedAt:   assessment.completed_at,
+    roleScores:    scores.role_scores,
+    stageScores:   scores.stage_scores,
+    energyScores:  scores.energy_scores,
+    derived:       scores.derived,
     profile,
   })
 }
