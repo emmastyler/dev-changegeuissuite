@@ -45,9 +45,10 @@ export async function POST(req: NextRequest) {
     .select('question_id, value')
     .eq('assessment_id', assessmentId)
 
-  if (!responses || responses.length < TOTAL_QUESTIONS) {
+  const uniqueAnswered = new Set(responses?.map(r => r.question_id)).size
+  if (!responses || uniqueAnswered < TOTAL_QUESTIONS) {
     return NextResponse.json({
-      error: `Incomplete — ${responses?.length ?? 0}/${TOTAL_QUESTIONS} questions answered`,
+      error: `Incomplete — ${uniqueAnswered}/${TOTAL_QUESTIONS} questions answered`,
     }, { status: 422 })
   }
 
