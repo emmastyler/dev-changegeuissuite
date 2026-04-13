@@ -1,6 +1,5 @@
 import Stripe from "stripe";
 
-// Singleton — only instantiated server-side
 let _stripe: Stripe | null = null;
 
 export function getStripe(): Stripe {
@@ -23,8 +22,9 @@ export interface CreateStripeSessionParams {
   plan: "individual" | "team";
   teamSize?: number;
   teamId?: string;
-  teamName?: string; // <-- added
-  organization?: string; // <-- added
+  teamName?: string;
+  organization?: string;
+  isRetake?: boolean;
   successUrl: string;
   cancelUrl: string;
 }
@@ -33,14 +33,8 @@ export async function createStripeCheckoutSession(
   params: CreateStripeSessionParams,
 ) {
   const stripe = getStripe();
-  const priceUSD = 24; // $24 per person
+  const priceUSD = 24;
   const quantity = params.plan === "team" ? (params.teamSize ?? 1) : 1;
-
-  // Build product description
-  let description = "One-time payment. Lifetime access to your results.";
-  if (params.organization) {
-    description = `${params.organization} team assessment. ${description}`;
-  }
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
@@ -54,10 +48,11 @@ export async function createStripeCheckoutSession(
               params.plan === "individual"
                 ? "Change Genius™ Individual Assessment"
                 : `Change Genius™ Team Assessment (${quantity} members)`,
-            description,
-            images: [],
+            description: params.isRetake
+              ? "Retake – one-time payment"
+              : "One-time payment. Lifetime access to your results.",
           },
-          unit_amount: priceUSD * 100, // cents
+          unit_amount: priceUSD * 100,
         },
         quantity,
       },
@@ -67,8 +62,9 @@ export async function createStripeCheckoutSession(
       plan: params.plan,
       teamSize: String(quantity),
       teamId: params.teamId ?? "",
-      teamName: params.teamName ?? "", // <-- added
-      organization: params.organization ?? "", // <-- added
+      teamName: params.teamName ?? "",
+      organization: params.organization ?? "",
+      isRetake: String(params.isRetake ?? false),
     },
     success_url: params.successUrl,
     cancel_url: params.cancelUrl,
@@ -76,9 +72,6 @@ export async function createStripeCheckoutSession(
       metadata: {
         userId: params.userId,
         plan: params.plan,
-        teamId: params.teamId ?? "",
-        teamName: params.teamName ?? "",
-        organization: params.organization ?? "",
       },
     },
   });

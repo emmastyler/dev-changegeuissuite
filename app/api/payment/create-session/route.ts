@@ -25,9 +25,8 @@ export async function POST(req: NextRequest) {
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    if (!session) {
+    if (!session)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     const body = (await req.json()) as {
       plan: "individual" | "team";
@@ -37,6 +36,7 @@ export async function POST(req: NextRequest) {
       countryCode?: string;
       teamName?: string;
       organization?: string;
+      retake?: boolean;
     };
 
     const {
@@ -46,18 +46,30 @@ export async function POST(req: NextRequest) {
       countryCode,
       teamName,
       organization,
+      retake,
     } = body;
 
     if (!["individual", "team"].includes(plan)) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
 
+    // Check if user is retaking (individual plan only)
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("onboarded")
+      .eq("id", session.user.id)
+      .single();
+    const isRetake =
+      plan === "individual" && (retake === true || profile?.onboarded === true);
+
     const headerCountry = getCountryFromHeaders(req.headers);
     const resolvedCountry = countryCode ?? headerCountry;
     const provider = body.provider ?? getProviderForCountry(resolvedCountry);
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    const successUrl = `${appUrl}/payment/success?session_id={CHECKOUT_SESSION_ID}&provider=${provider}`;
+
+    // ✅ Add retake flag to success URL
+    const successUrl = `${appUrl}/payment/success?session_id={CHECKOUT_SESSION_ID}&provider=${provider}&retake=${isRetake}`;
     const cancelUrl = `${appUrl}/payment/cancelled`;
 
     if (provider === "stripe") {
@@ -69,6 +81,7 @@ export async function POST(req: NextRequest) {
         teamId,
         teamName,
         organization,
+        isRetake,
         successUrl,
         cancelUrl,
       });
@@ -89,7 +102,8 @@ export async function POST(req: NextRequest) {
       teamId,
       teamName,
       organization,
-      callbackUrl: `${appUrl}/payment/success?provider=paystack`,
+      isRetake,
+      callbackUrl: `${appUrl}/payment/success?provider=paystack&retake=${isRetake}`,
     });
 
     if (!paystackRes.status) {

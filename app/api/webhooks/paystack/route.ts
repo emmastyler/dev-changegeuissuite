@@ -28,6 +28,7 @@ interface PaystackChargeEvent {
       teamId: string;
       teamName?: string;
       organization?: string;
+      isRetake?: string;
     };
   };
 }
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest) {
 
   if (payload.event === "charge.success") {
     const { data } = payload;
-    const { userId, plan, teamId, teamName, organization } =
+    const { userId, plan, teamId, teamName, organization, isRetake } =
       data.metadata ?? {};
 
     if (!userId) {
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
         { onConflict: "provider_reference" },
       );
 
-      // If team purchase, create team and add owner as completed member
+      // If team purchase, create team
       if (plan === "team" && teamName) {
         const { data: team, error: teamError } = await supabase
           .from("teams")
@@ -95,6 +96,11 @@ export async function POST(req: NextRequest) {
             user_id: userId,
             status: "completed",
           });
+          // After creating team or if teamId exists
+          await supabase
+            .from("teams")
+            .update({ status: "active" })
+            .eq("id", teamId);
           await supabase
             .from("profiles")
             .update({ role: "team_owner" })
@@ -107,18 +113,35 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ has_paid: true })
-        .eq("id", userId);
-
-      if (updateError) {
-        console.error(
-          "[paystack-webhook] Failed to update has_paid:",
-          updateError,
-        );
-      } else {
-        console.log(`[paystack-webhook] ✓ has_paid set for user ${userId}`);
+      // If individual retake, reset onboarded
+      if (plan === "individual" && isRetake === "true") {
+        const { error: resetError } = await supabase
+          .from("profiles")
+          .update({ onboarded: false })
+          .eq("id", userId);
+        if (resetError) {
+          console.error(
+            "[paystack-webhook] Failed to reset onboarded:",
+            resetError,
+          );
+        } else {
+          console.log(
+            `[paystack-webhook] Retake – reset onboarded for user ${userId}`,
+          );
+        }
+      } else if (plan === "individual") {
+        const { error: updateError } = await supabase
+          .from("profiles")
+          .update({ has_paid: true })
+          .eq("id", userId);
+        if (updateError) {
+          console.error(
+            "[paystack-webhook] Failed to update has_paid:",
+            updateError,
+          );
+        } else {
+          console.log(`[paystack-webhook] ✓ has_paid set for user ${userId}`);
+        }
       }
     } catch (err) {
       console.error("[paystack-webhook] DB error:", err);

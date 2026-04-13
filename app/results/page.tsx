@@ -545,6 +545,65 @@ export default function ResultsPage() {
           </div>
         </div>
 
+        {/* MANDATORY UPSELL: Invite Your Team */}
+        {!profile?.change_genius_role_2 && ( // show only if not already in a team? You can show always
+          <div
+            style={{
+              background: "linear-gradient(135deg, #0a2540, #1a6bfa)",
+              borderRadius: 24,
+              padding: 40,
+              marginTop: 32,
+              textAlign: "center",
+            }}
+          >
+            <h2
+              style={{
+                fontSize: 28,
+                fontWeight: 800,
+                color: "white",
+                marginBottom: 12,
+              }}
+            >
+              Your Results Are Just the Beginning
+            </h2>
+            <p
+              style={{
+                fontSize: 16,
+                color: "rgba(255,255,255,0.8)",
+                marginBottom: 24,
+              }}
+            >
+              You now understand how you contribute to change.
+              <br />
+              The real breakthrough happens when your team is aligned.
+            </p>
+            <Link
+              href="/teams/create"
+              style={{
+                display: "inline-block",
+                background: "white",
+                color: "#0a2540",
+                fontSize: 16,
+                fontWeight: 700,
+                padding: "12px 32px",
+                borderRadius: 100,
+                textDecoration: "none",
+              }}
+            >
+              Build Your Team Change Map™ →
+            </Link>
+            <p
+              style={{
+                fontSize: 13,
+                color: "rgba(255,255,255,0.6)",
+                marginTop: 16,
+              }}
+            >
+              Invite your team – $24 per person
+            </p>
+          </div>
+        )}
+
         {/* ADAPTS RADAR + STAGES */}
         <div className="card" style={{ padding: 40 }}>
           <div

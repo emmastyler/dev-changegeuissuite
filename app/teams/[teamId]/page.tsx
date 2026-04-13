@@ -4,6 +4,13 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 
+interface Member {
+  userId: string;
+  fullName: string;
+  status: string;
+  role: string | null;
+}
+
 interface Team {
   id: string;
   name: string;
@@ -15,12 +22,7 @@ interface Team {
   completedCount: number;
   unlocked: boolean;
   fullUnlocked: boolean;
-  members: Array<{
-    userId: string;
-    fullName: string;
-    status: string;
-    role: string | null;
-  }>;
+  members: Member[];
   diagnostic: any;
 }
 
@@ -31,6 +33,7 @@ export default function TeamDetailPage() {
   const router = useRouter();
   const [team, setTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
 
   useEffect(() => {
@@ -47,6 +50,14 @@ export default function TeamDetailPage() {
       })
       .catch(() => setLoading(false));
   }, [teamId, isAuthenticated]);
+
+  const copyInviteLink = () => {
+    if (team?.inviteLink) {
+      navigator.clipboard.writeText(team.inviteLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   const purchaseTeamReport = async () => {
     setPurchasing(true);
@@ -76,9 +87,62 @@ export default function TeamDetailPage() {
         <h1 style={{ fontSize: 32, fontWeight: 800, marginTop: 16 }}>
           {team.name}
         </h1>
-        <p style={{ color: "var(--text-3)" }}>
-          {team.organization || "No organization"}
-        </p>
+        {team.organization && (
+          <p style={{ color: "var(--text-3)" }}>{team.organization}</p>
+        )}
+
+        {team.isOwner && (
+          <div
+            style={{
+              background: "white",
+              borderRadius: 16,
+              padding: 24,
+              marginTop: 24,
+            }}
+          >
+            <h3>Invite Team Members</h3>
+            <p style={{ marginBottom: 12 }}>
+              Share this link – anyone who clicks will be added to your team (no
+              payment required).
+            </p>
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <code
+                style={{
+                  background: "var(--off)",
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  wordBreak: "break-all",
+                  flex: 1,
+                }}
+              >
+                {team.inviteLink}
+              </code>
+              <button
+                onClick={copyInviteLink}
+                style={{
+                  background: "var(--blue)",
+                  color: "white",
+                  border: "none",
+                  padding: "8px 16px",
+                  borderRadius: 100,
+                  cursor: "pointer",
+                }}
+              >
+                {copied ? "Copied!" : "Copy Link"}
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: "var(--text-4)", marginTop: 12 }}>
+              Invite code: <strong>{team.inviteCode}</strong>
+            </p>
+          </div>
+        )}
 
         <div
           style={{
@@ -88,17 +152,37 @@ export default function TeamDetailPage() {
             marginTop: 24,
           }}
         >
-          <h3>Team Members</h3>
-          <p>
+          <h3>Members ({team.totalMembers})</h3>
+          <div style={{ marginTop: 12 }}>
+            {team.members.map((m) => (
+              <div
+                key={m.userId}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  padding: "8px 0",
+                  borderBottom: "1px solid var(--border)",
+                }}
+              >
+                <span>{m.fullName}</span>
+                <span
+                  style={{
+                    color:
+                      m.status === "completed" ? "#16a34a" : "var(--text-4)",
+                  }}
+                >
+                  {m.status === "completed"
+                    ? "✓ Completed"
+                    : m.status === "joined"
+                      ? "Joined"
+                      : "Invited"}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p style={{ marginTop: 16, fontSize: 13 }}>
             {team.completedCount}/{team.totalMembers} completed assessment
           </p>
-          <ul>
-            {team.members.map((m) => (
-              <li key={m.userId}>
-                {m.fullName} – {m.status}
-              </li>
-            ))}
-          </ul>
         </div>
 
         {team.fullUnlocked && team.diagnostic ? (
@@ -115,7 +199,7 @@ export default function TeamDetailPage() {
               Risk Score: {team.diagnostic.riskScore} (
               {team.diagnostic.riskLevel})
             </p>
-            <pre style={{ fontSize: 12, overflow: "auto" }}>
+            <pre style={{ fontSize: 12, overflow: "auto", maxHeight: 300 }}>
               {JSON.stringify(team.diagnostic, null, 2)}
             </pre>
           </div>

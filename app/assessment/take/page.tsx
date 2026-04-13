@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { ORDERED_QUESTIONS, TOTAL_QUESTIONS } from "@/lib/assessment/questions";
 
@@ -17,6 +17,8 @@ const LABELS = [
 export default function AssessmentTakePage() {
   const { isAuthenticated, profile, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isRetake = searchParams.get("retake") === "true";
 
   const [assessmentId, setAssessmentId] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -47,13 +49,16 @@ export default function AssessmentTakePage() {
     }
   }, [authLoading, isAuthenticated, profile, router]);
 
-  //  start/resume useEffect
+  // Start or resume assessment
   useEffect(() => {
     if (authLoading || !isAuthenticated || !profile?.has_paid) return;
     async function init() {
       try {
-        console.log("[take] Calling /api/assessment/start");
-        const res = await fetch("/api/assessment/start", { method: "POST" });
+        const url = isRetake
+          ? "/api/assessment/start?fresh=true"
+          : "/api/assessment/start";
+        console.log("[take] Calling", url);
+        const res = await fetch(url, { method: "POST" });
         if (!res.ok) {
           const data = await res.json();
           if (res.status === 403 && data.paymentRequired) {
@@ -67,21 +72,21 @@ export default function AssessmentTakePage() {
           lastQuestionIndex: number;
           answeredResponses: Record<string, number>;
         };
-        console.log("[take] Received data:", data);
         setAssessmentId(data.assessmentId);
         setAnswers(data.answeredResponses);
-        // ✅ Set current index to the last answered question (or 0)
         setCurrentIndex(data.lastQuestionIndex);
-        console.log("[take] Setting current index to", data.lastQuestionIndex);
         setLoadingState("ready");
-      } catch (err) {
-        console.error("[take] Error:", err);
+        // Clear retake param from URL after using it
+        if (isRetake) {
+          router.replace("/assessment/take", undefined);
+        }
+      } catch {
         setError("Could not start assessment. Please refresh and try again.");
         setLoadingState("ready");
       }
     }
     void init();
-  }, [authLoading, isAuthenticated, profile, router]);
+  }, [authLoading, isAuthenticated, profile, router, isRetake]);
 
   // Save single answer
   const saveAnswer = useCallback(

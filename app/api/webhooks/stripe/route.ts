@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
-    const { userId, plan, teamId, teamName, organization, teamSize } =
+    const { userId, plan, teamId, teamName, organization, isRetake } =
       session.metadata ?? {};
 
     if (!userId) {
@@ -77,6 +77,12 @@ export async function POST(req: NextRequest) {
             user_id: userId,
             status: "completed",
           });
+          // After creating team or if teamId exists
+          await supabase
+            .from("teams")
+            .update({ status: "active" })
+            .eq("id", teamId);
+
           await supabase
             .from("profiles")
             .update({ role: "team_owner" })
@@ -89,19 +95,36 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Unlock assessment for the user
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ has_paid: true })
-        .eq("id", userId);
-
-      if (updateError) {
-        console.error(
-          "[stripe-webhook] Failed to update has_paid:",
-          updateError,
-        );
-      } else {
-        console.log(`[stripe-webhook] ✓ has_paid set for user ${userId}`);
+      // If individual retake, reset onboarded to false so user can take assessment again
+      if (plan === "individual" && isRetake === "true") {
+        const { error: resetError } = await supabase
+          .from("profiles")
+          .update({ onboarded: false })
+          .eq("id", userId);
+        if (resetError) {
+          console.error(
+            "[stripe-webhook] Failed to reset onboarded:",
+            resetError,
+          );
+        } else {
+          console.log(
+            `[stripe-webhook] Retake – reset onboarded for user ${userId}`,
+          );
+        }
+      } else if (plan === "individual") {
+        // First-time purchase: set has_paid = true, onboarded remains false
+        const { error: updateError } = await supabase
+          .from("profiles")
+          .update({ has_paid: true })
+          .eq("id", userId);
+        if (updateError) {
+          console.error(
+            "[stripe-webhook] Failed to update has_paid:",
+            updateError,
+          );
+        } else {
+          console.log(`[stripe-webhook] ✓ has_paid set for user ${userId}`);
+        }
       }
     } catch (err) {
       console.error("[stripe-webhook] DB error:", err);
