@@ -24,6 +24,7 @@ export interface CreateStripeSessionParams {
   teamSize?: number;
   teamId?: string;
   teamName?: string; // <-- added
+  organization?: string; // <-- added
   successUrl: string;
   cancelUrl: string;
 }
@@ -34,6 +35,12 @@ export async function createStripeCheckoutSession(
   const stripe = getStripe();
   const priceUSD = 24; // $24 per person
   const quantity = params.plan === "team" ? (params.teamSize ?? 1) : 1;
+
+  // Build product description
+  let description = "One-time payment. Lifetime access to your results.";
+  if (params.organization) {
+    description = `${params.organization} team assessment. ${description}`;
+  }
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
@@ -47,7 +54,7 @@ export async function createStripeCheckoutSession(
               params.plan === "individual"
                 ? "Change Genius™ Individual Assessment"
                 : `Change Genius™ Team Assessment (${quantity} members)`,
-            description: "One-time payment. Lifetime access to your results.",
+            description,
             images: [],
           },
           unit_amount: priceUSD * 100, // cents
@@ -60,6 +67,8 @@ export async function createStripeCheckoutSession(
       plan: params.plan,
       teamSize: String(quantity),
       teamId: params.teamId ?? "",
+      teamName: params.teamName ?? "", // <-- added
+      organization: params.organization ?? "", // <-- added
     },
     success_url: params.successUrl,
     cancel_url: params.cancelUrl,
@@ -67,6 +76,9 @@ export async function createStripeCheckoutSession(
       metadata: {
         userId: params.userId,
         plan: params.plan,
+        teamId: params.teamId ?? "",
+        teamName: params.teamName ?? "",
+        organization: params.organization ?? "",
       },
     },
   });
