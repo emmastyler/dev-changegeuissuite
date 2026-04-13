@@ -1,8 +1,3 @@
-/**
- * Paystack API helpers (server-side only)
- * Docs: https://paystack.com/docs/api
- */
-
 const PAYSTACK_BASE = "https://api.paystack.co";
 
 function paystackHeaders() {
@@ -20,8 +15,9 @@ export interface InitializePaystackParams {
   plan: "individual" | "team";
   teamSize?: number;
   teamId?: string;
-  teamName?: string; // <-- added
-  organization?: string; // <-- added
+  teamName?: string;
+  organization?: string;
+  isRetake?: boolean;
   callbackUrl: string;
 }
 
@@ -40,9 +36,8 @@ export async function initializePaystackTransaction(
 ) {
   const priceNGN = 39000; // ₦39,000 per person
   const quantity = params.plan === "team" ? (params.teamSize ?? 1) : 1;
-  const amountKobo = priceNGN * quantity * 100; // Paystack uses kobo
+  const amountKobo = priceNGN * quantity * 100;
 
-  // Generate a unique reference
   const reference = `cgv1_${params.userId}_${Date.now()}`;
 
   const body = {
@@ -56,8 +51,9 @@ export async function initializePaystackTransaction(
       plan: params.plan,
       teamSize: quantity,
       teamId: params.teamId ?? "",
-      teamName: params.teamName ?? "", // <-- added
-      organization: params.organization ?? "", // <-- added
+      teamName: params.teamName ?? "",
+      organization: params.organization ?? "",
+      isRetake: String(params.isRetake ?? false),
       custom_fields: [
         { display_name: "Plan", variable_name: "plan", value: params.plan },
         {
@@ -65,24 +61,6 @@ export async function initializePaystackTransaction(
           variable_name: "team_size",
           value: String(quantity),
         },
-        ...(params.teamName
-          ? [
-              {
-                display_name: "Team Name",
-                variable_name: "team_name",
-                value: params.teamName,
-              },
-            ]
-          : []),
-        ...(params.organization
-          ? [
-              {
-                display_name: "Organization",
-                variable_name: "organization",
-                value: params.organization,
-              },
-            ]
-          : []),
       ],
     },
   };
@@ -114,12 +92,11 @@ export interface PaystackVerifyResponse {
       plan: string;
       teamSize: number;
       teamId: string;
-      teamName?: string; // <-- added (optional for backward compatibility)
-      organization?: string; // <-- added
+      teamName?: string;
+      organization?: string;
+      isRetake?: string;
     };
-    customer: {
-      email: string;
-    };
+    customer: { email: string };
     paid_at: string;
   };
 }
@@ -144,7 +121,7 @@ export function verifyPaystackWebhookSignature(
   payload: string,
   signature: string,
 ): boolean {
-  const crypto = require("crypto") as typeof import("crypto");
+  const crypto = require("crypto");
   const secret = process.env.PAYSTACK_WEBHOOK_SECRET ?? "";
   const hash = crypto
     .createHmac("sha512", secret)

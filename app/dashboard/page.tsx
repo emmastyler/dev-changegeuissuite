@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,12 +8,22 @@ import { signOut } from "@/lib/auth";
 export default function DashboardPage() {
   const { user, profile, loading, isAuthenticated } = useAuth();
   const router = useRouter();
+  const [hasInProgress, setHasInProgress] = useState(false);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       router.push("/login?returnUrl=/dashboard");
     }
   }, [loading, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (isAuthenticated && profile?.has_paid) {
+      fetch("/api/assessment/status")
+        .then((res) => res.json())
+        .then((data) => setHasInProgress(data.hasInProgress))
+        .catch(() => setHasInProgress(false));
+    }
+  }, [isAuthenticated, profile?.has_paid]);
 
   async function handleSignOut() {
     await signOut();
@@ -49,7 +59,6 @@ export default function DashboardPage() {
     { href: "/pulse", label: "Weekly Pulse", icon: "📡" },
   ];
 
-  // What the assessment card does depends on payment state
   const assessmentCard = hasPaid
     ? {
         href: "/assessment",
@@ -85,6 +94,18 @@ export default function DashboardPage() {
       badge: hasPaid ? null : "🔒",
     },
   ];
+
+  // Determine assessment status text
+  let assessmentStatusText = "Not yet purchased";
+  if (hasPaid) {
+    if (onboarded) {
+      assessmentStatusText = "Completed";
+    } else if (hasInProgress) {
+      assessmentStatusText = "Started — in progress";
+    } else {
+      assessmentStatusText = "Purchased — not started";
+    }
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--sage)" }}>
@@ -229,7 +250,8 @@ export default function DashboardPage() {
             </p>
           </div>
         </div>
-        {/* Persistent Invite Team CTA – shown only if user has paid and onboarded */}
+
+        {/* Persistent Invite Team CTA */}
         {hasPaid && onboarded && (
           <div
             style={{
@@ -242,20 +264,13 @@ export default function DashboardPage() {
               justifyContent: "space-between",
               flexWrap: "wrap",
               gap: 16,
-              border: "1px solid var(--blue)",
             }}
           >
             <div>
-              <strong style={{ fontSize: 16, color: "var(--navy)" }}>
+              <strong style={{ fontSize: 16 }}>
                 Transformation is not individual.
               </strong>
-              <p
-                style={{
-                  margin: "4px 0 0",
-                  fontSize: 14,
-                  color: "var(--text-2)",
-                }}
-              >
+              <p style={{ margin: 0, fontSize: 14 }}>
                 Invite your team to unlock real insight.
               </p>
             </div>
@@ -264,11 +279,9 @@ export default function DashboardPage() {
               style={{
                 background: "var(--blue)",
                 color: "white",
-                padding: "10px 28px",
+                padding: "8px 24px",
                 borderRadius: 100,
                 textDecoration: "none",
-                fontWeight: 700,
-                fontSize: 14,
               }}
             >
               Invite Your Team →
@@ -324,7 +337,7 @@ export default function DashboardPage() {
         )}
 
         {/* Assessment CTA — shown only if paid but not yet taken */}
-        {hasPaid && !onboarded && (
+        {hasPaid && !onboarded && !hasInProgress && (
           <div
             style={{
               background: "var(--blue)",
@@ -366,6 +379,53 @@ export default function DashboardPage() {
               }}
             >
               Begin Assessment →
+            </Link>
+          </div>
+        )}
+
+        {/* Resume assessment CTA — shown if in progress */}
+        {hasPaid && !onboarded && hasInProgress && (
+          <div
+            style={{
+              background: "var(--blue)",
+              borderRadius: "var(--radius)",
+              padding: "28px 40px",
+              display: "flex",
+              alignItems: "center",
+              gap: 24,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ fontSize: 34, flexShrink: 0 }}>📝</div>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div
+                style={{
+                  fontSize: 17,
+                  fontWeight: 700,
+                  color: "white",
+                  marginBottom: 4,
+                }}
+              >
+                Resume your assessment
+              </div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,.7)" }}>
+                You left off — continue where you stopped.
+              </div>
+            </div>
+            <Link
+              href="/assessment/take"
+              style={{
+                background: "white",
+                color: "var(--navy)",
+                fontSize: 14,
+                fontWeight: 800,
+                padding: "12px 28px",
+                borderRadius: "100px",
+                textDecoration: "none",
+                flexShrink: 0,
+              }}
+            >
+              Resume Assessment →
             </Link>
           </div>
         )}
@@ -448,14 +508,7 @@ export default function DashboardPage() {
             {[
               { label: "Name", value: profile?.full_name || "—" },
               { label: "Email", value: user?.email || "—" },
-              {
-                label: "Assessment status",
-                value: !hasPaid
-                  ? "Not yet purchased"
-                  : onboarded
-                    ? "Completed"
-                    : "Purchased — not started",
-              },
+              { label: "Assessment status", value: assessmentStatusText },
               {
                 label: "Change Genius™ Role",
                 value:
@@ -498,6 +551,33 @@ export default function DashboardPage() {
                 </div>
               </div>
             ))}
+          </div>
+          {hasPaid && onboarded && !hasInProgress && (
+            <div style={{ marginTop: 16 }}>
+              <Link
+                href="/payment?plan=individual&retake=true"
+                style={{
+                  fontSize: 13,
+                  color: "var(--blue)",
+                  textDecoration: "underline",
+                  cursor: "pointer",
+                }}
+              >
+                Retake assessment ($24)
+              </Link>
+            </div>
+          )}
+          <div style={{ marginTop: 12 }}>
+            <Link
+              href="/assessment-history"
+              style={{
+                fontSize: 13,
+                color: "var(--text-3)",
+                textDecoration: "underline",
+              }}
+            >
+              View all your assessment results
+            </Link>
           </div>
         </div>
       </div>
