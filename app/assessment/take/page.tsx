@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { ORDERED_QUESTIONS, TOTAL_QUESTIONS } from "@/lib/assessment/questions";
@@ -14,7 +14,7 @@ const LABELS = [
   "Strongly Agree",
 ];
 
-export default function AssessmentTakePage() {
+function AssessmentTakePageContent() {
   const { isAuthenticated, profile, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -57,7 +57,6 @@ export default function AssessmentTakePage() {
         const url = isRetake
           ? "/api/assessment/start?fresh=true"
           : "/api/assessment/start";
-        console.log("[take] Calling", url);
         const res = await fetch(url, { method: "POST" });
         if (!res.ok) {
           const data = await res.json();
@@ -76,7 +75,6 @@ export default function AssessmentTakePage() {
         setAnswers(data.answeredResponses);
         setCurrentIndex(data.lastQuestionIndex);
         setLoadingState("ready");
-        // Clear retake param from URL after using it
         if (isRetake) {
           router.replace("/assessment/take", undefined);
         }
@@ -654,5 +652,27 @@ export default function AssessmentTakePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AssessmentTakePage() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          style={{
+            minHeight: "100vh",
+            background: "var(--sage)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          Loading...
+        </div>
+      }
+    >
+      <AssessmentTakePageContent />
+    </Suspense>
   );
 }

@@ -21,10 +21,9 @@ export default function PaymentSuccessInner() {
 
   useEffect(() => {
     void verify();
-  }, []); // eslint-disable-line
+  }, []);
 
   async function verify() {
-    // ── PAYSTACK ─────────────────────────────────────────────
     if (provider === "paystack" && reference) {
       try {
         const res = await fetch(
@@ -33,7 +32,6 @@ export default function PaymentSuccessInner() {
         const data = (await res.json()) as { success?: boolean };
         if (data.success) {
           await getSupabase().auth.refreshSession();
-          // Wait for has_paid to be true
           await waitForHasPaid();
           setStatus("success");
         } else {
@@ -45,13 +43,11 @@ export default function PaymentSuccessInner() {
       return;
     }
 
-    // ── STRIPE ───────────────────────────────────────────────
     if (
       provider === "stripe" &&
       sessionId &&
       sessionId !== "{CHECKOUT_SESSION_ID}"
     ) {
-      // Step 1: try the direct confirm endpoint
       try {
         const res = await fetch("/api/payment/confirm", {
           method: "POST",
@@ -63,18 +59,13 @@ export default function PaymentSuccessInner() {
           paid?: boolean;
           error?: string;
         };
-
         if (data.confirmed && data.paid) {
           await getSupabase().auth.refreshSession();
           await waitForHasPaid();
           setStatus("success");
           return;
         }
-      } catch {
-        // fall through
-      }
-
-      // Step 2: poll the DB
+      } catch {}
       await pollUntilPaid();
       return;
     }
@@ -114,26 +105,22 @@ export default function PaymentSuccessInner() {
         setStatus("failed");
         return;
       }
-
       const { data: profile } = await sb
         .from("profiles")
         .select("has_paid")
         .eq("id", user.id)
         .single();
-
       if (profile?.has_paid) {
         setStatus("success");
         return;
       }
       if (i < maxAttempts - 1) await sleep(intervalMs);
     }
-    // If still not paid but we're here, assume success
     setStatus("success");
   }
 
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-  // Redirect after success
   useEffect(() => {
     if (status === "success") {
       if (plan === "team" && teamId) {
@@ -146,7 +133,6 @@ export default function PaymentSuccessInner() {
     }
   }, [status, plan, teamId, retake, router]);
 
-  // ── VERIFYING ────────────────────────────────────────────────
   if (status === "verifying")
     return (
       <div
@@ -202,7 +188,6 @@ export default function PaymentSuccessInner() {
       </div>
     );
 
-  // ── FAILED ───────────────────────────────────────────────────
   if (status === "failed")
     return (
       <div
@@ -306,8 +291,7 @@ export default function PaymentSuccessInner() {
       </div>
     );
 
-  // ── SUCCESS ──────────────────────────────────────────────────
-  // This will show briefly before redirect
+  // Brief success message while redirect happens
   return (
     <div
       style={{
@@ -316,184 +300,16 @@ export default function PaymentSuccessInner() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: 24,
       }}
     >
-      <div
-        style={{
-          background: "var(--navy)",
-          borderRadius: "var(--radius)",
-          padding: "60px 52px",
-          maxWidth: 560,
-          width: "100%",
-          textAlign: "center",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            position: "absolute",
-            right: -40,
-            top: -40,
-            width: 200,
-            height: 200,
-            borderRadius: "50%",
-            background: "rgba(26,107,250,.15)",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            left: -30,
-            bottom: -30,
-            width: 140,
-            height: 140,
-            borderRadius: "50%",
-            background: "rgba(26,107,250,.08)",
-          }}
-        />
-        <div style={{ position: "relative", zIndex: 1 }}>
-          <div style={{ fontSize: 56, marginBottom: 20 }}>🎉</div>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: "rgba(255,255,255,.4)",
-              textTransform: "uppercase",
-              letterSpacing: "1.5px",
-              marginBottom: 12,
-            }}
-          >
-            Payment confirmed
-          </div>
-          <h1
-            style={{
-              fontSize: "clamp(24px,3.5vw,32px)",
-              fontWeight: 800,
-              color: "white",
-              letterSpacing: "-0.8px",
-              marginBottom: 14,
-              lineHeight: 1.2,
-            }}
-          >
-            {plan === "team" ? "Your team is ready!" : "You're ready to begin."}
-          </h1>
-          <p
-            style={{
-              fontSize: 15,
-              color: "rgba(255,255,255,.6)",
-              lineHeight: 1.65,
-              marginBottom: 32,
-              maxWidth: 380,
-              marginLeft: "auto",
-              marginRight: "auto",
-            }}
-          >
-            {plan === "team"
-              ? "Your team has been created. You can now invite members and manage your team dashboard."
-              : "Your Change Genius™ assessment is now unlocked. Complete it in 8–10 minutes and receive your full results immediately."}
-          </p>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-              marginBottom: 32,
-            }}
-          >
-            {plan === "team"
-              ? [
-                  ["👥", "Invite team members via shareable link"],
-                  ["📊", "Track team progress and insights"],
-                  ["🚀", "Unlock Team Change Map™"],
-                ].map(([icon, text]) => (
-                  <div
-                    key={text}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "10px 16px",
-                      background: "rgba(255,255,255,.06)",
-                      borderRadius: 8,
-                      textAlign: "left",
-                    }}
-                  >
-                    <span style={{ fontSize: 18, flexShrink: 0 }}>{icon}</span>
-                    <span
-                      style={{ fontSize: 13, color: "rgba(255,255,255,.7)" }}
-                    >
-                      {text}
-                    </span>
-                  </div>
-                ))
-              : [
-                  ["⚡", "Results appear instantly after completion"],
-                  ["📄", "Download your PDF report any time"],
-                  ["👥", "Invite your team from your dashboard"],
-                ].map(([icon, text]) => (
-                  <div
-                    key={text}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "10px 16px",
-                      background: "rgba(255,255,255,.06)",
-                      borderRadius: 8,
-                      textAlign: "left",
-                    }}
-                  >
-                    <span style={{ fontSize: 18, flexShrink: 0 }}>{icon}</span>
-                    <span
-                      style={{ fontSize: 13, color: "rgba(255,255,255,.7)" }}
-                    >
-                      {text}
-                    </span>
-                  </div>
-                ))}
-          </div>
-          <Link
-            href={
-              plan === "team" && teamId
-                ? `/teams/${teamId}`
-                : retake
-                  ? "/assessment/take?retake=true"
-                  : "/assessment"
-            }
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              background: "white",
-              color: "var(--navy)",
-              fontSize: 15,
-              fontWeight: 800,
-              padding: "14px 36px",
-              borderRadius: "100px",
-              textDecoration: "none",
-            }}
-          >
-            {plan === "team"
-              ? "Go to Team Dashboard →"
-              : retake
-                ? "Start Retake Assessment →"
-                : "Start My Assessment →"}
-          </Link>
-          <div style={{ marginTop: 16 }}>
-            <Link
-              href="/dashboard"
-              style={{
-                fontSize: 13,
-                color: "rgba(255,255,255,.38)",
-                textDecoration: "none",
-              }}
-            >
-              Go to dashboard instead
-            </Link>
-          </div>
-        </div>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+        <h2 style={{ fontSize: 24, fontWeight: 800, color: "var(--navy)" }}>
+          Payment successful!
+        </h2>
+        <p style={{ marginTop: 8, color: "var(--text-3)" }}>
+          Redirecting you...
+        </p>
       </div>
     </div>
   );
