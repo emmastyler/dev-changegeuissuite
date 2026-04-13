@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 export async function POST(req: NextRequest) {
+  console.log("[start] Called");
   const cookieStore = await cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,6 +26,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const userId = session.user.id;
+  console.log("[start] User ID:", userId);
 
   // Check payment
   const { data: profile } = await supabase
@@ -36,7 +38,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Payment required" }, { status: 402 });
   }
 
-  // ✅ Check if user already completed ANY assessment
+  // Check if user already has a COMPLETED assessment
   const { data: completed } = await supabase
     .from("assessments")
     .select("id")
@@ -45,6 +47,7 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   if (completed) {
+    console.log("[start] Found completed assessment, blocking retake");
     return NextResponse.json(
       {
         error:
@@ -56,39 +59,24 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ✅ Find the most recent IN_PROGRESS assessment (not completed, not abandoned)
-  let { data: existing } = await supabase
+  // Look for an existing IN_PROGRESS assessment
+  let { data: existing, error: fetchError } = await supabase
     .from("assessments")
     .select("id, last_question_index, status")
     .eq("user_id", userId)
     .eq("status", "in_progress")
     .order("started_at", { ascending: false })
     .limit(1)
-    .maybeSingle();
+    .single();
 
-  // ✅ If no in_progress, check for any abandoned or stuck assessments and reuse one
-  if (!existing) {
-    const { data: abandoned } = await supabase
-      .from("assessments")
-      .select("id, last_question_index, status")
-      .eq("user_id", userId)
-      .in("status", ["abandoned", "in_progress"])
-      .order("started_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+  console.log("[start] Existing assessment:", existing);
 
-    if (abandoned) {
-      // Reuse this assessment by setting status back to in_progress
-      await supabase
-        .from("assessments")
-        .update({ status: "in_progress" })
-        .eq("id", abandoned.id);
-      existing = abandoned;
-    }
+  if (fetchError && fetchError.code !== "PGRST116") {
+    console.error("[start] Fetch error:", fetchError);
   }
 
   if (existing) {
-    // Fetch all saved answers for this assessment
+    // Fetch all saved answers
     const { data: responses } = await supabase
       .from("responses")
       .select("question_id, value")
@@ -97,12 +85,14 @@ export async function POST(req: NextRequest) {
     const answeredMap: Record<string, number> = {};
     for (const r of responses ?? []) answeredMap[r.question_id] = r.value;
 
-    // ✅ Resume at the last answered question index (if never answered, 0)
-    const resumeIndex = existing.last_question_index ?? 0;
+    // Use the stored last_question_index (which is the index of the last answered question)
+    let resumeIndex = existing.last_question_index ?? 0;
+    // If for some reason last_question_index is -1, set to 0
+    if (resumeIndex < 0) resumeIndex = 0;
+    // Ensure we don't exceed total questions
+    if (resumeIndex >= 60) resumeIndex = 59;
 
-    console.log(
-      `[start] Resuming assessment ${existing.id} at index ${resumeIndex}`,
-    );
+    console.log("[start] Resuming at index:", resumeIndex);
 
     return NextResponse.json({
       assessmentId: existing.id,
@@ -112,26 +102,29 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // ✅ No existing assessment at all – create a fresh one
-  console.log(`[start] Creating new assessment for user ${userId}`);
-  const { data: newAssessment, error } = await supabase
+  // No in-progress assessment – create a new one
+  console.log("[start] Creating new assessment");
+  const { data: newAssessment, error: createError } = await supabase
     .from("assessments")
     .insert({
       user_id: userId,
       version: "v1",
       status: "in_progress",
       last_question_index: 0,
+      started_at: new Date().toISOString(),
     })
     .select("id")
     .single();
 
-  if (error || !newAssessment) {
-    console.error("[assessment/start] creation error:", error);
+  if (createError || !newAssessment) {
+    console.error("[start] Creation error:", createError);
     return NextResponse.json(
       { error: "Could not start assessment" },
       { status: 500 },
     );
   }
+
+  console.log("[start] New assessment created:", newAssessment.id);
 
   return NextResponse.json({
     assessmentId: newAssessment.id,
