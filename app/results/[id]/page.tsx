@@ -1,33 +1,10 @@
-"use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { notFound } from "next/navigation";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import Link from "next/link";
-import { useAuth } from "@/hooks/useAuth";
 import { buildNarrative } from "@/lib/assessment/narratives";
-import {
-  type Role,
-  type AdaptsStage,
-  type Energy,
-} from "@/lib/assessment/questions";
 import { BarChart } from "@/components/results/BarChart";
 import { RadarChart } from "@/components/results/RadarChart";
-
-interface ResultsData {
-  assessmentId: string;
-  completedAt: string;
-  roleScores: Record<Role, number>;
-  stageScores: Record<AdaptsStage, number>;
-  energyScores: Record<Energy, number>;
-  derived: {
-    primary_role: Role;
-    secondary_role: Role;
-    role_pair_title: string;
-    primary_energy: Energy;
-    top_adapts_stages: AdaptsStage[];
-    bottom_adapts_stages: AdaptsStage[];
-  };
-  profile: { full_name: string | null };
-}
 
 const ROLE_COLORS: Record<string, string> = {
   Innovator: "#0a2540",
@@ -37,6 +14,7 @@ const ROLE_COLORS: Record<string, string> = {
   Builder: "#0d3060",
   Refiner: "#93b8fb",
 };
+
 const STAGE_COLORS: Record<string, string> = {
   "Alert the System": "#0a2540",
   "Diagnose the Gaps": "#0d3060",
@@ -45,6 +23,7 @@ const STAGE_COLORS: Record<string, string> = {
   "Transform Through Alignment": "#4d8ef8",
   "Scale and Sustain": "#93b8fb",
 };
+
 const ENERGY_COLORS: Record<string, string> = {
   Spark: "#0a2540",
   Build: "#1557d4",
@@ -52,191 +31,44 @@ const ENERGY_COLORS: Record<string, string> = {
   Bond: "#4d8ef8",
 };
 
-export default function ResultsPage() {
-  const { profile, isAuthenticated, loading: authLoading } = useAuth();
-  const router = useRouter();
-  const [data, setData] = useState<ResultsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
 
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated)
-      router.push("/login?returnUrl=/results");
-  }, [authLoading, isAuthenticated, router]);
+export default async function ResultsPageById({ params }: PageProps) {
+  const { id } = await params;
+  const cookieStore = await cookies();
 
-  useEffect(() => {
-    if (authLoading || !isAuthenticated) return;
-    if (profile && !profile.has_paid) {
-      router.push("/payment?plan=individual");
-      return;
-    }
-    fetch("/api/results")
-      .then((r) => r.json())
-      .then((d: ResultsData | { error: string }) => {
-        if ("error" in d) {
-          setError(d.error);
-          setLoading(false);
-          return;
-        }
-        setData(d as ResultsData);
-        setLoading(false);
-      })
-      .catch(() => {
-        setError("Failed to load results");
-        setLoading(false);
-      });
-  }, [authLoading, isAuthenticated, profile, router]);
-
-  const Nav = (
-    <div style={{ background: "var(--navy)", padding: "0 24px" }}>
-      <div
-        style={{
-          maxWidth: 1160,
-          margin: "0 auto",
-          height: 56,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Link
-          href="/"
-          style={{
-            fontSize: 16,
-            fontWeight: 800,
-            color: "white",
-            textDecoration: "none",
-          }}
-        >
-          changegenius™
-        </Link>
-        <div style={{ display: "flex", gap: 20 }}>
-          <Link
-            href="/dashboard"
-            style={{
-              fontSize: 13,
-              color: "rgba(255,255,255,.6)",
-              textDecoration: "none",
-            }}
-          >
-            Dashboard
-          </Link>
-          <Link
-            href="/teams"
-            style={{
-              fontSize: 13,
-              color: "rgba(255,255,255,.6)",
-              textDecoration: "none",
-            }}
-          >
-            Teams
-          </Link>
-        </div>
-      </div>
-    </div>
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll() {},
+      },
+    },
   );
 
-  if (authLoading || loading)
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "var(--sage)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <div style={{ textAlign: "center" }}>
-          <div
-            style={{ fontSize: 13, color: "var(--text-3)", marginBottom: 8 }}
-          >
-            Loading your results…
-          </div>
-          <div
-            style={{
-              width: 200,
-              height: 3,
-              background: "var(--border)",
-              borderRadius: 2,
-              overflow: "hidden",
-              margin: "0 auto",
-            }}
-          >
-            <div
-              style={{
-                height: "100%",
-                background: "var(--blue)",
-                width: "60%",
-                animation: "loadbar 1.2s ease infinite",
-                borderRadius: 2,
-              }}
-            />
-          </div>
-        </div>
-        <style>{`@keyframes loadbar{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}`}</style>
-      </div>
-    );
+  const { data: assessment, error } = await supabase
+    .from("assessments")
+    .select("*, scores(*)")
+    .eq("id", id)
+    .single();
 
-  if (profile && !profile.has_paid) return null;
-
-  if (!data) {
-    const notTaken = error === "No completed assessment found";
-    return (
-      <div style={{ minHeight: "100vh", background: "var(--sage)" }}>
-        {Nav}
-        <div className="page">
-          <div className="card" style={{ padding: 52, textAlign: "center" }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>
-              {notTaken ? "📋" : "⚠️"}
-            </div>
-            <h2
-              style={{
-                fontSize: 26,
-                fontWeight: 800,
-                color: "var(--navy)",
-                marginBottom: 12,
-              }}
-            >
-              {notTaken ? "No results yet" : "Could not load results"}
-            </h2>
-            <p
-              style={{
-                fontSize: 15,
-                color: "var(--text-3)",
-                lineHeight: 1.65,
-                marginBottom: 28,
-              }}
-            >
-              {notTaken
-                ? "Complete your assessment to see your Change Genius™ profile."
-                : error}
-            </p>
-            <Link
-              href="/assessment"
-              style={{
-                display: "inline-flex",
-                background: "var(--blue)",
-                color: "white",
-                fontSize: 14,
-                fontWeight: 700,
-                padding: "12px 28px",
-                borderRadius: "100px",
-                textDecoration: "none",
-              }}
-            >
-              {notTaken ? "Take the Assessment →" : "Try Again"}
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
+  if (error || !assessment || assessment.status !== "completed") {
+    notFound();
   }
 
-  const { derived, roleScores, stageScores, energyScores } = data;
+  const scores = assessment.scores;
+  if (!scores) notFound();
+
+  const derived = scores.derived;
   const narrative = buildNarrative(derived);
-  const roleColor = ROLE_COLORS[derived.primary_role] ?? "var(--navy)";
-  const date = new Date(data.completedAt).toLocaleDateString("en-GB", {
+  const roleColor = ROLE_COLORS[derived.primary_role] ?? "#0a2540";
+  const date = new Date(assessment.completed_at).toLocaleDateString("en-GB", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -244,7 +76,53 @@ export default function ResultsPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--sage)" }}>
-      {Nav}
+      <div style={{ background: "var(--navy)", padding: "0 24px" }}>
+        <div
+          style={{
+            maxWidth: 1160,
+            margin: "0 auto",
+            height: 56,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Link
+            href="/"
+            style={{
+              fontSize: 16,
+              fontWeight: 800,
+              color: "white",
+              textDecoration: "none",
+            }}
+          >
+            changegenius™
+          </Link>
+          <div style={{ display: "flex", gap: 20 }}>
+            <Link
+              href="/dashboard"
+              style={{
+                fontSize: 13,
+                color: "rgba(255,255,255,.6)",
+                textDecoration: "none",
+              }}
+            >
+              Dashboard
+            </Link>
+            <Link
+              href="/teams"
+              style={{
+                fontSize: 13,
+                color: "rgba(255,255,255,.6)",
+                textDecoration: "none",
+              }}
+            >
+              Teams
+            </Link>
+          </div>
+        </div>
+      </div>
+
       <div className="page">
         {/* HERO */}
         <div
@@ -367,63 +245,6 @@ export default function ResultsPage() {
           </div>
         </div>
 
-        {/* MANDATORY UPSELL: Invite Your Team */}
-        <div
-          style={{
-            background: "linear-gradient(135deg, #0a2540, #1a6bfa)",
-            borderRadius: 24,
-            padding: 40,
-            marginTop: 32,
-            textAlign: "center",
-          }}
-        >
-          <h2
-            style={{
-              fontSize: 28,
-              fontWeight: 800,
-              color: "white",
-              marginBottom: 12,
-            }}
-          >
-            Your Results Are Just the Beginning
-          </h2>
-          <p
-            style={{
-              fontSize: 16,
-              color: "rgba(255,255,255,0.8)",
-              marginBottom: 24,
-            }}
-          >
-            You now understand how you contribute to change.
-            <br />
-            The real breakthrough happens when your team is aligned.
-          </p>
-          <Link
-            href="/teams/create"
-            style={{
-              display: "inline-block",
-              background: "white",
-              color: "#0a2540",
-              fontSize: 16,
-              fontWeight: 700,
-              padding: "12px 32px",
-              borderRadius: 100,
-              textDecoration: "none",
-            }}
-          >
-            Build Your Team Change Map™ →
-          </Link>
-          <p
-            style={{
-              fontSize: 13,
-              color: "rgba(255,255,255,0.6)",
-              marginTop: 16,
-            }}
-          >
-            Invite your team – $24 per person
-          </p>
-        </div>
-
         {/* ADAPTS RADAR + STAGES */}
         <div className="card" style={{ padding: 40 }}>
           <div
@@ -447,7 +268,7 @@ export default function ResultsPage() {
               >
                 ADAPTS Stage Map
               </div>
-              <RadarChart stageScores={stageScores} />
+              <RadarChart stageScores={scores.stage_scores} />
             </div>
             <div>
               <div
@@ -462,7 +283,7 @@ export default function ResultsPage() {
               >
                 Stage Scores
               </div>
-              <BarChart scores={stageScores} colors={STAGE_COLORS} />
+              <BarChart scores={scores.stage_scores} colors={STAGE_COLORS} />
               <div
                 style={{
                   marginTop: 20,
@@ -491,7 +312,7 @@ export default function ResultsPage() {
                   >
                     Top Strengths
                   </div>
-                  {derived.top_adapts_stages.map((s) => (
+                  {derived.top_adapts_stages.map((s: string) => (
                     <div
                       key={s}
                       style={{
@@ -525,7 +346,7 @@ export default function ResultsPage() {
                   >
                     Growth Areas
                   </div>
-                  {derived.bottom_adapts_stages.map((s) => (
+                  {derived.bottom_adapts_stages.map((s: string) => (
                     <div
                       key={s}
                       style={{
@@ -558,7 +379,7 @@ export default function ResultsPage() {
           >
             All Role Scores
           </div>
-          <BarChart scores={roleScores} colors={ROLE_COLORS} />
+          <BarChart scores={scores.role_scores} colors={ROLE_COLORS} />
         </div>
 
         {/* ENERGY */}
@@ -575,7 +396,7 @@ export default function ResultsPage() {
           >
             Productivity Energy
           </div>
-          <BarChart scores={energyScores} colors={ENERGY_COLORS} />
+          <BarChart scores={scores.energy_scores} colors={ENERGY_COLORS} />
           <div
             style={{
               marginTop: 16,
@@ -758,7 +579,7 @@ export default function ResultsPage() {
           <div
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
           >
-            {narrative.next_30_days.map((action, i) => (
+            {narrative.next_30_days.map((action: string, i: number) => (
               <div
                 key={i}
                 style={{
@@ -810,7 +631,7 @@ export default function ResultsPage() {
           }}
         >
           <Link
-            href="/share"
+            href={`/share?aid=${assessment.id}`}
             style={{
               background: "white",
               borderRadius: "var(--radius)",
@@ -839,7 +660,7 @@ export default function ResultsPage() {
             </div>
           </Link>
           <a
-            href="/api/pdf/individual"
+            href={`/api/pdf/individual?aid=${assessment.id}`}
             style={{
               background: "white",
               borderRadius: "var(--radius)",
@@ -896,105 +717,6 @@ export default function ResultsPage() {
             >
               Invite your team and unlock collective change intelligence.
             </div>
-          </Link>
-        </div>
-
-        {/* DUPLICATE UPSELLS (remove if you want only one, but keeping as in your original) */}
-        <div
-          style={{
-            background: "linear-gradient(135deg, #0a2540 0%, #1a6bfa 100%)",
-            borderRadius: "var(--radius)",
-            padding: "48px 40px",
-            marginTop: 24,
-            textAlign: "center",
-          }}
-        >
-          <h2
-            style={{
-              fontSize: 32,
-              fontWeight: 800,
-              color: "white",
-              marginBottom: 12,
-            }}
-          >
-            Your Results Are Just the Beginning
-          </h2>
-          <p
-            style={{
-              fontSize: 18,
-              color: "rgba(255,255,255,0.8)",
-              marginBottom: 24,
-            }}
-          >
-            You now understand how you contribute to change.
-            <br />
-            The real breakthrough happens when your team is aligned.
-          </p>
-          <Link
-            href="/teams/create"
-            style={{
-              display: "inline-block",
-              background: "white",
-              color: "#0a2540",
-              fontSize: 18,
-              fontWeight: 700,
-              padding: "14px 40px",
-              borderRadius: 100,
-              textDecoration: "none",
-            }}
-          >
-            Build Your Team Change Map™ →
-          </Link>
-          <p
-            style={{
-              fontSize: 14,
-              color: "rgba(255,255,255,0.6)",
-              marginTop: 16,
-            }}
-          >
-            Invite your team – $24 per person
-          </p>
-        </div>
-
-        <div
-          style={{
-            background: "white",
-            borderRadius: "var(--radius)",
-            border: "2px solid var(--blue)",
-            padding: "32px 40px",
-            marginTop: 16,
-            textAlign: "center",
-          }}
-        >
-          <div style={{ fontSize: 32, marginBottom: 12 }}>🔍</div>
-          <h3
-            style={{
-              fontSize: 22,
-              fontWeight: 800,
-              color: "var(--navy)",
-              marginBottom: 8,
-            }}
-          >
-            Unlock Your Full Leadership Blueprint
-          </h3>
-          <p style={{ fontSize: 14, color: "var(--text-3)", marginBottom: 20 }}>
-            Deeper ADAPTS breakdown · Blind spot analysis · Leadership growth
-            plan · Role interaction insights
-          </p>
-          <Link
-            href="/payment?plan=advanced_report"
-            style={{
-              display: "inline-block",
-              background: "var(--blue)",
-              color: "white",
-              fontSize: 15,
-              fontWeight: 700,
-              padding: "12px 32px",
-              borderRadius: 100,
-              textDecoration: "none",
-            }}
-          >
-            Upgrade – $15
           </Link>
         </div>
       </div>
