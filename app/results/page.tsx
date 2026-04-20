@@ -591,12 +591,12 @@ export default function ResultsPage() {
               {derived.primary_energy} —{" "}
             </span>
             <span style={{ fontSize: 13, color: "var(--text-2)" }}>
-              {narrative.energy_profile}
+              {narrative.energy_summary}
             </span>
           </div>
         </div>
 
-        {/* NARRATIVE 2x2 */}
+        {/* NARRATIVE 2x2 using new narrative properties */}
         <div
           style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}
         >
@@ -621,12 +621,22 @@ export default function ResultsPage() {
                 marginBottom: 12,
               }}
             >
-              The {derived.primary_role}
+              The {narrative.role_name}
             </h3>
             <p
               style={{ fontSize: 14, color: "var(--text-2)", lineHeight: 1.75 }}
             >
-              {narrative.role_profile}
+              {narrative.role_summary}
+            </p>
+            <p
+              style={{
+                fontSize: 14,
+                color: "var(--text-2)",
+                lineHeight: 1.75,
+                marginTop: 12,
+              }}
+            >
+              {narrative.role_detailed}
             </p>
           </div>
           <div className="card" style={{ padding: 36 }}>
@@ -650,12 +660,22 @@ export default function ResultsPage() {
                 marginBottom: 12,
               }}
             >
-              {derived.primary_energy} Energy
+              {narrative.energy_name} Energy
             </h3>
             <p
               style={{ fontSize: 14, color: "var(--text-2)", lineHeight: 1.75 }}
             >
-              {narrative.energy_profile}
+              {narrative.energy_summary}
+            </p>
+            <p
+              style={{
+                fontSize: 14,
+                color: "var(--text-2)",
+                lineHeight: 1.75,
+                marginTop: 12,
+              }}
+            >
+              {narrative.energy_detailed}
             </p>
           </div>
           <div className="card" style={{ padding: 36 }}>
@@ -674,7 +694,7 @@ export default function ResultsPage() {
             <p
               style={{ fontSize: 14, color: "var(--text-2)", lineHeight: 1.75 }}
             >
-              {narrative.adapts_strengths}
+              {narrative.adapts_strengths_detailed}
             </p>
           </div>
           <div className="card" style={{ padding: 36 }}>
@@ -693,7 +713,7 @@ export default function ResultsPage() {
             <p
               style={{ fontSize: 14, color: "var(--text-2)", lineHeight: 1.75 }}
             >
-              {narrative.adapts_growth}
+              {narrative.adapts_growth_detailed}
             </p>
           </div>
         </div>
@@ -899,7 +919,7 @@ export default function ResultsPage() {
           </Link>
         </div>
 
-        {/* DUPLICATE UPSELLS (remove if you want only one, but keeping as in your original) */}
+        {/* DUPLICATE UPSELLS (keeping as in original) */}
         <div
           style={{
             background: "linear-gradient(135deg, #0a2540 0%, #1a6bfa 100%)",
