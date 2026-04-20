@@ -245,6 +245,63 @@ export default async function ResultsPageById({ params }: PageProps) {
           </div>
         </div>
 
+        {/* MANDATORY UPSELL: Invite Your Team */}
+        <div
+          style={{
+            background: "linear-gradient(135deg, #0a2540, #1a6bfa)",
+            borderRadius: 24,
+            padding: 40,
+            marginTop: 32,
+            textAlign: "center",
+          }}
+        >
+          <h2
+            style={{
+              fontSize: 28,
+              fontWeight: 800,
+              color: "white",
+              marginBottom: 12,
+            }}
+          >
+            Your Results Are Just the Beginning
+          </h2>
+          <p
+            style={{
+              fontSize: 16,
+              color: "rgba(255,255,255,0.8)",
+              marginBottom: 24,
+            }}
+          >
+            You now understand how you contribute to change.
+            <br />
+            The real breakthrough happens when your team is aligned.
+          </p>
+          <Link
+            href="/teams/create"
+            style={{
+              display: "inline-block",
+              background: "white",
+              color: "#0a2540",
+              fontSize: 16,
+              fontWeight: 700,
+              padding: "12px 32px",
+              borderRadius: 100,
+              textDecoration: "none",
+            }}
+          >
+            Build Your Team Change Map™ →
+          </Link>
+          <p
+            style={{
+              fontSize: 13,
+              color: "rgba(255,255,255,0.6)",
+              marginTop: 16,
+            }}
+          >
+            Invite your team – $24 per person
+          </p>
+        </div>
+
         {/* ADAPTS RADAR + STAGES */}
         <div className="card" style={{ padding: 40 }}>
           <div
@@ -412,12 +469,12 @@ export default async function ResultsPageById({ params }: PageProps) {
               {derived.primary_energy} —{" "}
             </span>
             <span style={{ fontSize: 13, color: "var(--text-2)" }}>
-              {narrative.energy_profile}
+              {narrative.energy_summary}
             </span>
           </div>
         </div>
 
-        {/* NARRATIVE 2x2 */}
+        {/* NARRATIVE 2x2 - using correct properties */}
         <div
           style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}
         >
@@ -442,12 +499,22 @@ export default async function ResultsPageById({ params }: PageProps) {
                 marginBottom: 12,
               }}
             >
-              The {derived.primary_role}
+              The {narrative.role_name}
             </h3>
             <p
               style={{ fontSize: 14, color: "var(--text-2)", lineHeight: 1.75 }}
             >
-              {narrative.role_profile}
+              {narrative.role_summary}
+            </p>
+            <p
+              style={{
+                fontSize: 14,
+                color: "var(--text-2)",
+                lineHeight: 1.75,
+                marginTop: 12,
+              }}
+            >
+              {narrative.role_detailed}
             </p>
           </div>
           <div className="card" style={{ padding: 36 }}>
@@ -471,12 +538,22 @@ export default async function ResultsPageById({ params }: PageProps) {
                 marginBottom: 12,
               }}
             >
-              {derived.primary_energy} Energy
+              {narrative.energy_name} Energy
             </h3>
             <p
               style={{ fontSize: 14, color: "var(--text-2)", lineHeight: 1.75 }}
             >
-              {narrative.energy_profile}
+              {narrative.energy_summary}
+            </p>
+            <p
+              style={{
+                fontSize: 14,
+                color: "var(--text-2)",
+                lineHeight: 1.75,
+                marginTop: 12,
+              }}
+            >
+              {narrative.energy_detailed}
             </p>
           </div>
           <div className="card" style={{ padding: 36 }}>
@@ -495,7 +572,7 @@ export default async function ResultsPageById({ params }: PageProps) {
             <p
               style={{ fontSize: 14, color: "var(--text-2)", lineHeight: 1.75 }}
             >
-              {narrative.adapts_strengths}
+              {narrative.adapts_strengths_detailed}
             </p>
           </div>
           <div className="card" style={{ padding: 36 }}>
@@ -514,7 +591,7 @@ export default async function ResultsPageById({ params }: PageProps) {
             <p
               style={{ fontSize: 14, color: "var(--text-2)", lineHeight: 1.75 }}
             >
-              {narrative.adapts_growth}
+              {narrative.adapts_growth_detailed}
             </p>
           </div>
         </div>
